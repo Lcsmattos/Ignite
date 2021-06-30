@@ -29,11 +29,12 @@ function getBalance(statement) {
 			return acc - operation.amount;
 		}
 	}, 0)
-	 return balance;
+
+	return balance;
 } 
 
 app.post('/account', (req, res) => {
-	const { cpf, name } = req.body;
+	const { cpf, name, balance } = req.body;
 
 	const customerAlreadyExists = customers.some(
 		customer => customer.cpf === cpf
@@ -47,8 +48,35 @@ app.post('/account', (req, res) => {
 		name,
 		cpf,
 		id: uuidv4(),
+		balance,
 		statement: []
 	});
+
+	return res.status(201).send()
+});
+
+app.get('/account', verifyIfExistsAccountCpf, (req, res) => {
+	const { customer } = req;
+
+	const balance = getBalance(customer.statement);
+	customer.balance = balance;
+
+	return res.status(201).json(customer)
+});
+
+app.delete('/account', verifyIfExistsAccountCpf, (req, res) => {
+	const { customer } = req;
+
+	customers.splice( customer, 1 );
+
+	return res.status(204).json(customers);
+});
+
+app.put('/customAccount', verifyIfExistsAccountCpf, (req, res) => {
+	const { name } = req.body;
+	const { customer } = req;
+	
+	customer.name = name
 
 	return res.status(201).send()
 });
@@ -57,6 +85,20 @@ app.get('/statement', verifyIfExistsAccountCpf, (req, res) => {
 	const { customer } = req;	
 
 	return res.status(200).json(customer.statement)
+});
+
+app.get('/statement/date', verifyIfExistsAccountCpf, (req, res) => {
+	const { customer } = req;	
+	const { date } = req.query;
+
+	const dateFormat = new Date(date + " 00:00");
+
+	const statement = customer.statement.filter((statement) => 
+		statement.created_at.toDateString() === 
+		new Date(dateFormat).toDateString() 
+	);
+
+	return res.status(200).json(statement)
 });
 
 app.post('/deposit', verifyIfExistsAccountCpf, (req, res) => {
@@ -96,33 +138,14 @@ app.post('/withdraw', verifyIfExistsAccountCpf,  (req, res) => {
 	return res.status(200).send()
 });
 
-app.get('/statement/date', verifyIfExistsAccountCpf, (req, res) => {
-	const { customer } = req;	
-	const { date } = req.query;
-
-	const dateFormat = new Date(date + " 00:00");
-
-	const statement = customer.statement.filter((statement) => 
-		statement.created_at.toDateString() === 
-		new Date(dateFormat).toDateString() 
-	);
-
-	return res.status(200).json(statement)
-});
-
-app.put('/customAccount', verifyIfExistsAccountCpf, (req, res) => {
-	const { name } = req.body;
-	const { customer } = req;
-	
-	customer.name = name
-
-	return res.status(201).send()
-});
-
-app.get('/account', verifyIfExistsAccountCpf, (req, res) => {
+app.get('/balance', verifyIfExistsAccountCpf, (req, res) => {
 	const { customer } = req;
 
-	return res.status(201).json(customer)
+	const balance = getBalance(customer.statement);
+
+	res.balance = balance
+
+	return res.json(balance);
 });
 
 
